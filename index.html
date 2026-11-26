@@ -163,7 +163,17 @@
 
   <section class="item" id="frete" hidden style="margin-top:14px" aria-label="Frete">
     <div class="item-topo"><b>Frete</b><button type="button" class="remover" id="btnRemFrete">Remover</button></div>
-    <div class="campos um">
+    <p class="sub-rot" style="margin-top:0">Região do frete (percentual sobre o valor total do pedido)</p>
+    <div class="pilulas" role="radiogroup" aria-label="Região do frete">
+      <label><input type="radio" name="regiao" value="sul"><span>Sul <small>8%</small></span></label>
+      <label><input type="radio" name="regiao" value="sudeste"><span>Sudeste <small>7%</small></span></label>
+      <label><input type="radio" name="regiao" value="centro"><span>Centro-Oeste <small>10%</small></span></label>
+      <label><input type="radio" name="regiao" value="nordeste"><span>Nordeste <small>15%</small></span></label>
+      <label><input type="radio" name="regiao" value="norte"><span>Norte <small>20%</small></span></label>
+      <label><input type="radio" name="regiao" value="curitiba"><span>Curitiba <small>3%</small></span></label>
+      <label><input type="radio" name="regiao" value="outro"><span>Outro valor</span></label>
+    </div>
+    <div class="campos um" id="boxManual" hidden>
       <div class="campo"><label for="vFrete">Valor do frete (com IPI)</label><input id="vFrete" type="text" inputmode="decimal" placeholder="Ex.: 45,00" autocomplete="off"></div>
     </div>
     <p class="sub-rot">O frete também é dividido por 100?</p>
@@ -221,6 +231,16 @@
   var TIPOS = {
     carrinho: { nome: "Carrinho", ipi: 0.0325, rotulo: "3,25%" },
     miudeza:  { nome: "Acessórios e miudezas", ipi: 0.0975, rotulo: "9,75%" }
+  };
+
+  // frete = percentual da região × valor total do pedido (com IPI)
+  var REGIOES = {
+    sul:      { nome: "Sul",          pct: 0.08 },
+    sudeste:  { nome: "Sudeste",      pct: 0.07 },
+    centro:   { nome: "Centro-Oeste", pct: 0.10 },
+    nordeste: { nome: "Nordeste",     pct: 0.15 },
+    norte:    { nome: "Norte",        pct: 0.20 },
+    curitiba: { nome: "Curitiba",     pct: 0.03 }
   };
 
   /* ---------- util ---------- */
@@ -332,24 +352,35 @@
 
   // devolve null se o frete não está ativo/preenchido; senão os números do frete
   function estadoFrete(ok) {
-    $("avFrete").hidden = true;
+    var av = $("avFrete"); av.hidden = true;
     if ($("frete").hidden) return null;
-    var txt = $("vFrete").value.trim();
-    if (!txt) return null;
-    var F = num(txt);
-    if (!(F > 0)) { $("avFrete").hidden = false; $("avFrete").textContent = "Digite o valor do frete, só com números."; return null; }
-    if (!ok.length) { $("avFrete").hidden = false; $("avFrete").textContent = "Preencha os itens primeiro, para eu saber qual alíquota usar no frete."; return null; }
+    var sel = document.querySelector("input[name=regiao]:checked");
+    $("boxManual").hidden = !(sel && sel.value === "outro");
+    if (!sel) return null;
+    if (!ok.length) { av.hidden = false; av.textContent = "Preencha os itens primeiro: o frete depende do valor total do pedido."; return null; }
+    var F, reg = null, base = 0;
+    ok.forEach(function (i) { base += i.r.comIpi; });
+    if (sel.value === "outro") {
+      var txt = $("vFrete").value.trim();
+      if (!txt) return null;
+      F = num(txt);
+      if (!(F > 0)) { av.hidden = false; av.textContent = "Digite o valor do frete, só com números."; return null; }
+    } else {
+      reg = REGIOES[sel.value];
+      F = base * reg.pct;
+    }
     var al = aliquotaFrete(ok);
     var k = document.querySelector("input[name=fdiv]:checked").value === "sim" ? 100 : 1;
     var semIpi = F / (1 + al.ipi);
-    return { F: F, al: al, k: k, semIpi: semIpi, ins: semIpi / k };
+    return { F: F, al: al, k: k, semIpi: semIpi, ins: semIpi / k, reg: reg, base: base };
   }
 
   function desenharFrete(ok, fr) {
     var res = $("resFrete"), aj = $("ajuste");
     if (!fr) { res.hidden = true; aj.hidden = true; return; }
     var h = "";
-    h += linha("Alíquota usada no frete", pct(fr.al.ipi) + " <small style='font-weight:400;color:var(--suave)'>(" + TIPOS[fr.al.tipo].nome + ", " + fr.al.motivo + ")</small>");
+    if (fr.reg) h += linha("Frete: " + fr.reg.nome + " (" + pct(fr.reg.pct) + " de " + brl(fr.base) + ")", brl(fr.F));
+    h += linha("Alíquota de IPI usada no frete", pct(fr.al.ipi) + " <small style='font-weight:400;color:var(--suave)'>(" + TIPOS[fr.al.tipo].nome + ", " + fr.al.motivo + ")</small>");
     h += linha("Frete sem IPI", brl(fr.semIpi));
     h += "<div class='res-linha res-neo'><span>Inserir o frete no Maxiprod" + (fr.k === 100 ? "<br>(frete sem IPI ÷ 100)" : "<br>(frete sem IPI)") + "</span><div class='dir'><b>" + brl4(fr.ins) + "</b><button type='button' class='copiar' data-v='" + num4(fr.ins) + "'>Copiar</button></div></div>";
     res.innerHTML = h; res.hidden = false;
@@ -413,10 +444,12 @@
   $("btnAdd").addEventListener("click", function () { var it = novoItem(); $("v" + it.id).focus(); });
   function fecharFrete() {
     $("vFrete").value = ""; $("tMax").value = "";
+    var r = document.querySelector("input[name=regiao]:checked"); if (r) r.checked = false;
+    $("boxManual").hidden = true;
     document.querySelector("input[name=fdiv][value=sim]").checked = true;
     $("frete").hidden = true; $("btnFrete").hidden = false;
   }
-  $("btnFrete").addEventListener("click", function () { $("frete").hidden = false; $("btnFrete").hidden = true; $("vFrete").focus(); totais(); });
+  $("btnFrete").addEventListener("click", function () { $("frete").hidden = false; $("btnFrete").hidden = true; totais(); });
   $("btnRemFrete").addEventListener("click", function () { fecharFrete(); totais(); });
   $("frete").addEventListener("input", totais);
   $("frete").addEventListener("change", totais);
