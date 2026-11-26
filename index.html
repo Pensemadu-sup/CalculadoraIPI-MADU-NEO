@@ -92,6 +92,14 @@
   .copiar { min-height: 36px; padding: 0 14px; border: 2px solid #1d1d1f; border-radius: 999px; background: transparent; color: #1d1d1f; font-weight: 900; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
   .copiar:active { transform: scale(.96); }
   .aviso { margin-top: 12px; font-size: .84rem; color: var(--erro); }
+  .campos.um { grid-template-columns: 1fr; }
+  .sub-rot { margin: 14px 0 8px; font-size: .78rem; font-weight: 600; color: var(--suave); }
+  .ajuste { margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--linha); }
+  .ajuste h3 { margin: 0; font-size: .92rem; font-weight: 600; }
+  .ajuste .mini { margin: 4px 0 12px; font-size: .8rem; line-height: 1.5; color: var(--suave); }
+  .ajuste .campo input { min-height: 42px; font-size: .92rem; }
+  .res-ok { color: var(--ok); }
+  .res-ok b { color: var(--ok); }
 
   .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 24px; border: 2px solid var(--laranja); border-radius: 999px; background: var(--laranja); color: #1d1d1f; font-weight: 900; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: transform .25s var(--ease), background .25s; }
   .btn:hover { background: var(--laranja-esc); border-color: var(--laranja-esc); }
@@ -149,8 +157,33 @@
 
   <div class="acoes">
     <button type="button" class="btn" id="btnAdd">+ Adicionar item</button>
+    <button type="button" class="btn sec" id="btnFrete">+ Adicionar frete</button>
     <button type="button" class="btn sec" id="btnLimpar">Limpar tudo</button>
   </div>
+
+  <section class="item" id="frete" hidden style="margin-top:14px" aria-label="Frete">
+    <div class="item-topo"><b>Frete</b><button type="button" class="remover" id="btnRemFrete">Remover</button></div>
+    <div class="campos um">
+      <div class="campo"><label for="vFrete">Valor do frete (com IPI)</label><input id="vFrete" type="text" inputmode="decimal" placeholder="Ex.: 45,00" autocomplete="off"></div>
+    </div>
+    <p class="sub-rot">O frete também é dividido por 100?</p>
+    <div class="pilulas" role="radiogroup" aria-label="Dividir o frete por 100">
+      <label><input type="radio" name="fdiv" value="sim" checked><span>Sim</span></label>
+      <label><input type="radio" name="fdiv" value="nao"><span>Não</span></label>
+    </div>
+    <div class="res" id="resFrete" hidden></div>
+    <div class="aviso" id="avFrete" hidden></div>
+
+    <div class="ajuste" id="ajuste" hidden>
+      <h3>Deu diferente no Maxiprod?</h3>
+      <p class="mini">Coloque o frete acima no Maxiprod e digite aqui o total que ele mostrou. A gente descobre qual valor colocar no frete para o total ficar certo.</p>
+      <div class="campos um">
+        <div class="campo"><label for="tMax">Total que deu no Maxiprod</label><input id="tMax" type="text" inputmode="decimal" placeholder="Ex.: 18,90" autocomplete="off"></div>
+      </div>
+      <div class="res" id="resAjuste" hidden></div>
+      <div class="aviso" id="avAjuste" hidden></div>
+    </div>
+  </section>
 
   <section class="total" id="total" hidden aria-label="Totais">
     <h2>Total da compra</h2>
@@ -272,7 +305,7 @@
     var semIpiUnit = semIpiTotal / d.q;
     var neoUnit = semIpiUnit / 100;
     var neoTotal = semIpiTotal / 100;
-    it.r = { comIpi: d.v, semIpiTotal: semIpiTotal, neoTotal: neoTotal, q: d.q };
+    it.r = { comIpi: d.v, semIpiTotal: semIpiTotal, neoTotal: neoTotal, q: d.q, tipo: d.tipo };
 
     var h = "";
     h += linha("Valor unitário sem IPI (cliente)", brl(semIpiUnit));
@@ -281,13 +314,90 @@
     res.innerHTML = h; res.hidden = false;
   }
 
+  /* ---------- frete ---------- */
+  function pct(n) { return (n * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; }
+  function brlS(n) { return (n < 0 ? "− " : n > 0 ? "+ " : "") + brl(Math.abs(n)); }
+
+  // alíquota do frete = a do tipo que mais aparece (empate: o de maior valor)
+  function aliquotaFrete(ok) {
+    var cont = { carrinho: 0, miudeza: 0 }, val = { carrinho: 0, miudeza: 0 };
+    ok.forEach(function (i) { cont[i.r.tipo]++; val[i.r.tipo] += i.r.comIpi; });
+    var a = cont.carrinho, b = cont.miudeza, tipo, motivo;
+    if (a && !b) { tipo = "carrinho"; motivo = "só tem Carrinho"; }
+    else if (b && !a) { tipo = "miudeza"; motivo = "só tem Acessórios e miudezas"; }
+    else if (a !== b) { tipo = a > b ? "carrinho" : "miudeza"; motivo = "é o que mais aparece"; }
+    else { tipo = val.carrinho >= val.miudeza ? "carrinho" : "miudeza"; motivo = "empate, ficou o de maior valor"; }
+    return { tipo: tipo, ipi: TIPOS[tipo].ipi, motivo: motivo };
+  }
+
+  // devolve null se o frete não está ativo/preenchido; senão os números do frete
+  function estadoFrete(ok) {
+    $("avFrete").hidden = true;
+    if ($("frete").hidden) return null;
+    var txt = $("vFrete").value.trim();
+    if (!txt) return null;
+    var F = num(txt);
+    if (!(F > 0)) { $("avFrete").hidden = false; $("avFrete").textContent = "Digite o valor do frete, só com números."; return null; }
+    if (!ok.length) { $("avFrete").hidden = false; $("avFrete").textContent = "Preencha os itens primeiro, para eu saber qual alíquota usar no frete."; return null; }
+    var al = aliquotaFrete(ok);
+    var k = document.querySelector("input[name=fdiv]:checked").value === "sim" ? 100 : 1;
+    var semIpi = F / (1 + al.ipi);
+    return { F: F, al: al, k: k, semIpi: semIpi, ins: semIpi / k };
+  }
+
+  function desenharFrete(ok, fr) {
+    var res = $("resFrete"), aj = $("ajuste");
+    if (!fr) { res.hidden = true; aj.hidden = true; return; }
+    var h = "";
+    h += linha("Alíquota usada no frete", pct(fr.al.ipi) + " <small style='font-weight:400;color:var(--suave)'>(" + TIPOS[fr.al.tipo].nome + ", " + fr.al.motivo + ")</small>");
+    h += linha("Frete sem IPI", brl(fr.semIpi));
+    h += "<div class='res-linha res-neo'><span>Inserir o frete no Maxiprod" + (fr.k === 100 ? "<br>(frete sem IPI ÷ 100)" : "<br>(frete sem IPI)") + "</span><div class='dir'><b>" + brl4(fr.ins) + "</b><button type='button' class='copiar' data-v='" + num4(fr.ins) + "'>Copiar</button></div></div>";
+    res.innerHTML = h; res.hidden = false;
+    aj.hidden = false;
+
+    // engenharia reversa
+    var out = $("resAjuste"), av = $("avAjuste");
+    out.hidden = true; av.hidden = true;
+    var t = $("tMax").value.trim();
+    if (!t) return;
+    var Tm = num(t);
+    if (!(Tm > 0)) { av.hidden = false; av.textContent = "Digite o total que o Maxiprod mostrou, só com números."; return; }
+    var itensMax = 0; ok.forEach(function (i) { itensMax += i.r.comIpi / 100; });
+    var esperado = itensMax + fr.F / fr.k;
+    var dif = Tm - esperado;
+    if (Tm <= itensMax) { av.hidden = false; av.textContent = "Esse total é menor que só os itens (" + brl(itensMax) + "). Confira se digitou o total certo."; return; }
+    var rm = (Tm - itensMax) / fr.ins - 1;
+    if (rm < -0.5 || rm > 1) { av.hidden = false; av.textContent = "Esse total não parece bater com os itens e o frete informados. Confira os valores."; return; }
+    var hh = linha("Total esperado no Maxiprod", brl(esperado)) + linha("Diferença (Maxiprod − esperado)", brlS(Math.abs(dif) < 0.005 ? 0 : dif));
+    if (Math.abs(dif) < 0.005) {
+      hh += "<div class='res-linha res-ok'><span>O total do Maxiprod está batendo.</span><b>Não precisa corrigir</b></div>";
+    } else {
+      var corr = (fr.F / fr.k) / (1 + rm);
+      hh += linha("Alíquota que o Maxiprod aplicou no frete", pct(rm));
+      hh += "<div class='res-linha res-neo'><span>Frete corrigido para colocar<br>no Maxiprod</span><div class='dir'><b>" + brl4(corr) + "</b><button type='button' class='copiar' data-v='" + num4(corr) + "'>Copiar</button></div></div>";
+    }
+    out.innerHTML = hh; out.hidden = false;
+  }
+
   function totais() {
     var ok = itens.filter(function (i) { return i.r; });
-    $("total").hidden = ok.length < 2;
-    if (ok.length < 2) return;
+    var fr = estadoFrete(ok);
+    desenharFrete(ok, fr);
+    var mostrar = ok.length >= 2 || (ok.length >= 1 && fr);
+    $("total").hidden = !mostrar;
+    if (!mostrar) return;
     var c = 0, s = 0, n = 0;
     ok.forEach(function (i) { c += i.r.comIpi; s += i.r.semIpiTotal; n += i.r.neoTotal; });
-    $("resTotal").innerHTML = linha("Valor total com IPI", brl(c)) + linha("Valor total sem IPI", brl(s)) + linha("Total ÷ 100", brl4(n));
+    var h = "";
+    if (fr) {
+      h += linha("Itens com IPI", brl(c)) + linha("Frete com IPI", brl(fr.F));
+      c += fr.F; s += fr.semIpi; n += fr.ins;
+    }
+    h += linha("Valor total com IPI", brl(c)) + linha("Valor total sem IPI", brl(s)) + linha(fr ? "Total para o Maxiprod (sem IPI ÷ 100)" : "Total ÷ 100", brl4(n));
+    var esperado = c / 100;
+    if (fr && fr.k === 1) esperado = (c - fr.F) / 100 + fr.F;
+    h += linha("Total esperado no Maxiprod (com IPI)", brl(esperado));
+    $("resTotal").innerHTML = h;
   }
 
   function copiar(txt, btn) {
@@ -301,8 +411,21 @@
   }
 
   $("btnAdd").addEventListener("click", function () { var it = novoItem(); $("v" + it.id).focus(); });
+  function fecharFrete() {
+    $("vFrete").value = ""; $("tMax").value = "";
+    document.querySelector("input[name=fdiv][value=sim]").checked = true;
+    $("frete").hidden = true; $("btnFrete").hidden = false;
+  }
+  $("btnFrete").addEventListener("click", function () { $("frete").hidden = false; $("btnFrete").hidden = true; $("vFrete").focus(); totais(); });
+  $("btnRemFrete").addEventListener("click", function () { fecharFrete(); totais(); });
+  $("frete").addEventListener("input", totais);
+  $("frete").addEventListener("change", totais);
+  $("frete").addEventListener("click", function (e) {
+    var b = e.target.closest(".copiar"); if (!b) return;
+    copiar(b.getAttribute("data-v"), b);
+  });
   $("btnLimpar").addEventListener("click", function () {
-    $("lista").innerHTML = ""; itens = []; novoItem(); totais();
+    $("lista").innerHTML = ""; itens = []; fecharFrete(); novoItem(); totais();
   });
 
   novoItem();
