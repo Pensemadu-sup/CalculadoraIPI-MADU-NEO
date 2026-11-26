@@ -107,6 +107,9 @@
   .res-linha .dir { display: flex; align-items: center; gap: 10px; }
   .copiar.peq { min-height: 32px; padding: 0 12px; border: 1px solid var(--linha); color: var(--tinta); font-size: .66rem; }
   .copiar.peq:hover { background: var(--faixa); }
+  .kitp { margin-top: 10px; }
+  .kitpanel { margin-top: 12px; padding: 14px; border-radius: 16px; background: var(--faixa); border: 1px solid var(--laranja); }
+  .kitpanel .campo input { background: var(--card); }
   .res-ok { color: var(--ok); }
   .res-ok b { color: var(--ok); }
 
@@ -212,7 +215,7 @@
     <div class="res" id="resCli"></div>
   </section>
 
-  <p class="nota"><b>Como é calculado:</b> valor sem IPI = valor com IPI ÷ (1 + IPI). O IPI é <b>3,25%</b> para Carrinho e <b>9,75%</b> para Acessórios e miudezas. O valor para o Maxiprod é o valor sem IPI ÷ 100, porque o Maxiprod soma o IPI sozinho.</p>
+  <p class="nota"><b>Como é calculado:</b> valor sem IPI = valor com IPI ÷ (1 + IPI). O IPI é <b>3,25%</b> para Carrinho e <b>9,75%</b> para Acessórios e miudezas. O valor para o Maxiprod é o valor sem IPI ÷ 100, porque o Maxiprod soma o IPI sozinho. Em kit de marketplace, o valor do kit é dividido pela quantidade de itens do kit para chegar no valor unitário.</p>
 </main>
 
 <footer>
@@ -283,8 +286,10 @@
         "<label><input type='radio' name='tipo" + id + "' value='carrinho' checked><span>Carrinho <small>3,25%</small></span></label>" +
         "<label><input type='radio' name='tipo" + id + "' value='miudeza'><span>Acessórios e miudezas <small>9,75%</small></span></label>" +
       "</div>" +
+      "<div class='pilulas kitp'><label><input type='checkbox' id='k" + id + "'><span>Kit (marketplace)</span></label></div>" +
+      "<div class='kitpanel' id='kp" + id + "' hidden><div class='campo'><label for='n" + id + "'>Quantos itens tem em cada kit?</label><input id='n" + id + "' type='text' inputmode='numeric' placeholder='Ex.: 4' autocomplete='off'></div></div>" +
       "<div class='campos'>" +
-        "<div class='campo'><label for='q" + id + "'>Quantidade</label><input id='q" + id + "' type='text' inputmode='numeric' value='1' autocomplete='off'></div>" +
+        "<div class='campo'><label for='q" + id + "' id='ql" + id + "'>Quantidade</label><input id='q" + id + "' type='text' inputmode='numeric' value='1' autocomplete='off'></div>" +
         "<div class='campo'><label for='v" + id + "'>Valor total do item (com IPI)</label><input id='v" + id + "' type='text' inputmode='decimal' placeholder='Ex.: 39,90' autocomplete='off'></div>" +
       "</div>" +
       "<div class='res' hidden></div>" +
@@ -309,6 +314,7 @@
   function limparItem(it) {
     it.el.querySelector("input[value='carrinho']").checked = true;
     $("q" + it.id).value = "1"; $("v" + it.id).value = "";
+    $("k" + it.id).checked = false; $("n" + it.id).value = "";
     calcular(it); totais();
   }
   function numerar() {
@@ -321,27 +327,40 @@
   function dadosDe(it) {
     var tipo = it.el.querySelector("input[type=radio]:checked").value;
     var q = num($("q" + it.id).value), v = num($("v" + it.id).value);
-    return { tipo: tipo, q: q, v: v };
+    return { tipo: tipo, q: q, v: v, kit: $("k" + it.id).checked, n: num($("n" + it.id).value) };
   }
 
   function calcular(it) {
     var d = dadosDe(it), res = it.el.querySelector(".res"), av = it.el.querySelector(".aviso");
     it.r = null; av.hidden = true;
+    $("kp" + it.id).hidden = !d.kit;
+    $("ql" + it.id).textContent = d.kit ? "Quantidade de kits" : "Quantidade";
     var vazio = !$("v" + it.id).value.trim();
     if (vazio) { res.hidden = true; return; }
     if (!(d.v > 0)) { res.hidden = true; av.hidden = false; av.textContent = "Digite o valor total do item, só com números."; return; }
     if (!(d.q >= 1) || Math.floor(d.q) !== d.q) { res.hidden = true; av.hidden = false; av.textContent = "A quantidade precisa ser um número inteiro, 1 ou mais."; return; }
 
+    // kit de marketplace: o valor é do kit inteiro, então divide pelos itens de cada kit
+    var unid = d.q;
+    if (d.kit) {
+      if (!(d.n >= 2) || Math.floor(d.n) !== d.n) { res.hidden = true; av.hidden = false; av.textContent = "Informe quantos itens tem em cada kit (número inteiro, 2 ou mais)."; return; }
+      unid = d.q * d.n;
+    }
+
     var t = TIPOS[d.tipo];
     var semIpiTotal = d.v / (1 + t.ipi);
-    var semIpiUnit = semIpiTotal / d.q;
+    var semIpiUnit = semIpiTotal / unid;
     var neoUnit = semIpiUnit / 100;
     var neoTotal = semIpiTotal / 100;
-    it.r = { comIpi: d.v, semIpiTotal: semIpiTotal, neoTotal: neoTotal, q: d.q, tipo: d.tipo };
+    it.r = { comIpi: d.v, semIpiTotal: semIpiTotal, neoTotal: neoTotal, q: d.q, tipo: d.tipo, kit: d.kit, n: d.n, unid: unid };
 
     var h = "";
-    h += linha("Valor unitário sem IPI (cliente)", brl(semIpiUnit));
+    h += linha(d.kit ? "Valor de cada item do kit, sem IPI (cliente)" : "Valor unitário sem IPI (cliente)", brl(semIpiUnit));
     h += "<div class='res-linha res-neo'><span>Inserir no Maxiprod<br>(valor unitário ÷ 100)</span><div class='dir'><b>" + brl4(neoUnit) + "</b><button type='button' class='copiar' data-v='" + num4(neoUnit) + "'>Copiar</button></div></div>";
+    if (d.kit) {
+      h += linha("Valor de cada kit sem IPI", brl(semIpiTotal / d.q));
+      h += linha("Quantidade para colocar no pedido", unid + " un. <small style='font-weight:400;color:var(--suave)'>(" + d.q + (d.q > 1 ? " kits" : " kit") + " × " + d.n + " itens)</small>");
+    }
     if (d.q > 1) h += linha("Total do item sem IPI", brl(semIpiTotal)) + linha("Total do item ÷ 100", brl4(neoTotal));
     res.innerHTML = h; res.hidden = false;
   }
@@ -455,8 +474,10 @@
     var neo = "", cli = "";
     itens.forEach(function (it, idx) {
       if (!it.r) return;
-      var r = it.r, nome = "Item " + (idx + 1) + " · " + TIPOS[r.tipo].nome + (r.q > 1 ? " · " + r.q + " un." : "");
-      var unitNeo = r.semIpiTotal / r.q / 100;
+      var r = it.r, nome = "Item " + (idx + 1) + " · " + TIPOS[r.tipo].nome;
+      if (r.kit) nome += " · kit de " + r.n + (r.q > 1 ? " × " + r.q + " kits" : "") + " = " + r.unid + " un.";
+      else if (r.q > 1) nome += " · " + r.q + " un.";
+      var unitNeo = r.semIpiTotal / r.unid / 100;
       neo += linhaCp(nome + "<br><small>valor unitário sem IPI ÷ 100</small>", brl4(unitNeo), num4(unitNeo));
       cli += linhaCp(nome + "<br><small>valor total do item sem IPI</small>", brl(r.semIpiTotal), num2(r.semIpiTotal));
     });
