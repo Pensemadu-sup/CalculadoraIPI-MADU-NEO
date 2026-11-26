@@ -328,9 +328,9 @@
         "<label><input type='radio' name='tipo" + id + "' value='miudeza'><span>Acessórios e miudezas <small>9,75%</small></span></label>" +
       "</div>" +
       "<div class='pilulas kitp'><label><input type='checkbox' id='k" + id + "'><span>Kit (marketplace)</span></label></div>" +
-      "<div class='kitpanel' id='kp" + id + "' hidden><div class='campo'><label for='n" + id + "'>Quantos itens tem em cada kit?</label><input id='n" + id + "' type='text' inputmode='numeric' placeholder='Ex.: 4' autocomplete='off'></div></div>" +
-      "<div class='campos'>" +
-        "<div class='campo'><label for='q" + id + "' id='ql" + id + "'>Quantidade</label><input id='q" + id + "' type='text' inputmode='numeric' value='1' autocomplete='off'></div>" +
+      "<div class='kitpanel' id='kp" + id + "' hidden><div class='campo'><label for='n" + id + "'>Quantidade de itens</label><input id='n" + id + "' type='text' inputmode='numeric' placeholder='Ex.: 4' autocomplete='off'></div></div>" +
+      "<div class='campos um' id='cp" + id + "'>" +
+        "<div class='campo' id='qw" + id + "' hidden><label for='q" + id + "' id='ql" + id + "'>Quantidade de kits</label><input id='q" + id + "' type='text' inputmode='numeric' value='1' autocomplete='off'></div>" +
         "<div class='campo'><label for='v" + id + "'>Valor total do item (com IPI)</label><input id='v" + id + "' type='text' inputmode='decimal' placeholder='Ex.: 39,90' autocomplete='off'></div>" +
       "</div>" +
       "<div class='res' hidden></div>" +
@@ -367,24 +367,28 @@
 
   function dadosDe(it) {
     var tipo = it.el.querySelector("input[type=radio]:checked").value;
-    var q = num($("q" + it.id).value), v = num($("v" + it.id).value);
-    return { tipo: tipo, q: q, v: v, kit: $("k" + it.id).checked, n: num($("n" + it.id).value) };
+    var kit = $("k" + it.id).checked;
+    // sem kit, a quantidade é sempre 1; o campo de quantidade só existe no modo kit
+    var q = kit ? num($("q" + it.id).value) : 1, v = num($("v" + it.id).value);
+    return { tipo: tipo, q: q, v: v, kit: kit, n: num($("n" + it.id).value) };
   }
 
   function calcular(it) {
     var d = dadosDe(it), res = it.el.querySelector(".res"), av = it.el.querySelector(".aviso");
     it.r = null; av.hidden = true;
     $("kp" + it.id).hidden = !d.kit;
-    $("ql" + it.id).textContent = d.kit ? "Quantidade de kits" : "Quantidade";
+    $("qw" + it.id).hidden = !d.kit;
+    $("cp" + it.id).classList.toggle("um", !d.kit);
+    $("ql" + it.id).textContent = "Quantidade de kits";
     var vazio = !$("v" + it.id).value.trim();
     if (vazio) { res.hidden = true; return; }
     if (!(d.v > 0)) { res.hidden = true; av.hidden = false; av.textContent = "Digite o valor total do item, só com números."; return; }
-    if (!(d.q >= 1) || Math.floor(d.q) !== d.q) { res.hidden = true; av.hidden = false; av.textContent = "A quantidade precisa ser um número inteiro, 1 ou mais."; return; }
+    if (!(d.q >= 1) || Math.floor(d.q) !== d.q) { res.hidden = true; av.hidden = false; av.textContent = "A quantidade de kits precisa ser um número inteiro, 1 ou mais."; return; }
 
     // kit de marketplace: o valor é do kit inteiro, então divide pelos itens de cada kit
     var unid = d.q;
     if (d.kit) {
-      if (!(d.n >= 2) || Math.floor(d.n) !== d.n) { res.hidden = true; av.hidden = false; av.textContent = "Informe quantos itens tem em cada kit (número inteiro, 2 ou mais)."; return; }
+      if (!(d.n >= 2) || Math.floor(d.n) !== d.n) { res.hidden = true; av.hidden = false; av.textContent = "Informe a quantidade de itens de cada kit (número inteiro, 2 ou mais)."; return; }
       unid = d.q * d.n;
     }
 
