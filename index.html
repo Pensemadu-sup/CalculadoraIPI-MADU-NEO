@@ -40,7 +40,7 @@
   :focus-visible { outline: 3px solid var(--lavanda); outline-offset: 3px; }
 
   header { position: sticky; top: 0; z-index: 5; background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px); border-bottom: 1px solid var(--linha); }
-  .topo { max-width: 920px; margin: 0 auto; height: 56px; padding: 0 24px; display: flex; align-items: center; gap: 20px; }
+  .topo { max-width: 1120px; margin: 0 auto; height: 56px; padding: 0 24px; display: flex; align-items: center; gap: 20px; }
   .marca { font-weight: 900; font-size: 1.5rem; letter-spacing: -.01em; color: var(--laranja); text-decoration: none; }
   nav { display: flex; gap: 4px; margin-left: auto; }
   nav a { padding: 8px 14px; border-radius: 999px; font-size: .84rem; font-weight: 600; color: var(--suave); text-decoration: none; transition: background .2s, color .2s; }
@@ -53,13 +53,13 @@
   html[data-tema="escuro"] .tema .sol { display: block; }
   html[data-tema="escuro"] .tema .lua { display: none; }
 
-  main { max-width: 920px; margin: 0 auto; padding: clamp(36px, 8vw, 88px) 24px 72px; }
+  main { max-width: 1120px; margin: 0 auto; padding: clamp(36px, 8vw, 88px) 24px 72px; }
   h1 { margin: 0; font-size: clamp(2.1rem, 6.4vw, 3.8rem); font-weight: 900; line-height: 1.05; letter-spacing: -.035em; }
   .sub { margin: 18px 0 0; max-width: 38em; font-size: clamp(1rem, 2.2vw, 1.2rem); line-height: 1.55; color: var(--suave); }
 
   .barra-lista { margin-top: 40px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
   .barra-lista h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
-  .lista { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 14px; }
+  .lista { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr)); gap: 14px; align-items: start; }
 
   .item { padding: 20px; border-radius: 24px; background: var(--card); border: 1px solid var(--linha); animation: subir .45s var(--ease) both; }
   @keyframes subir { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -98,8 +98,40 @@
   .ajuste h3 { margin: 0; font-size: .92rem; font-weight: 600; }
   .ajuste .mini { margin: 4px 0 12px; font-size: .8rem; line-height: 1.5; color: var(--suave); }
   .ajuste .campo input { min-height: 42px; font-size: .92rem; }
-  .grupo { margin: 20px 0 10px; font-size: .95rem; font-weight: 600; }
-  .grupo:first-of-type { margin-top: 0; }
+  .grupo { margin: 0 0 10px; font-size: .95rem; font-weight: 600; }
+
+  /* ---- layout mais compacto: coisas lado a lado ---- */
+  .lista .item .res { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lista .item .res > :first-child, .lista .item .res .res-neo { grid-column: 1 / -1; }
+  .lista .item .res .res-linha:not(.res-neo) { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 10px 14px; }
+
+  .frete-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; }
+  .frete-grid:has(> .ajuste[hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .frete-grid .ajuste { margin-top: 0; padding-top: 0; border-top: 0; padding-left: 28px; border-left: 1px dashed var(--linha); }
+  .frete-grid > * { min-width: 0; }
+  #resFrete { grid-template-columns: 1fr 1fr; gap: 8px; }
+  #resFrete > :first-child, #resFrete .res-neo { grid-column: 1 / -1; }
+  #resFrete .res-linha:not(.res-neo) { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 10px 14px; }
+
+  #resTotal { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; }
+  #resTotal .res-linha { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 12px 14px; }
+  #resTotal .res-linha b { font-size: 1.05rem; }
+  #resTotal .res-linha:last-child { background: var(--laranja); color: #1d1d1f; }
+  #resTotal .res-linha:last-child b { color: #1d1d1f; }
+
+  .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  #total { padding: 18px 20px; }
+  #resumo .res { gap: 8px; }
+
+  @media (max-width: 860px) {
+    .frete-grid, .frete-grid:has(> .ajuste[hidden]) { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .frete-grid .ajuste { padding-left: 0; border-left: 0; padding-top: 18px; border-top: 1px dashed var(--linha); }
+    .resumo-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .lista .item .res { grid-template-columns: 1fr; }
+    #resFrete { grid-template-columns: 1fr; }
+  }
   .grupo small { display: block; margin-top: 2px; font-size: .78rem; font-weight: 400; color: var(--suave); }
   #resumo { margin-top: 20px; }
   #resumo .res-linha { align-items: center; }
@@ -128,7 +160,7 @@
   .nota { margin: 40px 0 0; padding: 20px 22px; border-radius: 22px; background: var(--faixa); font-size: .88rem; line-height: 1.6; color: var(--suave); }
   .nota b { color: var(--tinta); font-weight: 600; }
 
-  footer { max-width: 920px; margin: 0 auto; padding: 24px 24px calc(40px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--linha); font-size: .8rem; color: var(--suave); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  footer { max-width: 1120px; margin: 0 auto; padding: 24px 24px calc(40px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--linha); font-size: .8rem; color: var(--suave); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
   footer a { color: inherit; font-weight: 600; text-decoration: none; }
 
   @media (max-width: 600px) {
@@ -175,6 +207,7 @@
 
   <section class="item" id="frete" hidden style="margin-top:14px" aria-label="Frete">
     <div class="item-topo"><b>Frete</b><button type="button" class="remover" id="btnRemFrete">Remover</button></div>
+    <div class="frete-grid"><div class="frete-esq">
     <p class="sub-rot" style="margin-top:0">Região do frete (percentual sobre o valor total do pedido)</p>
     <div class="pilulas" role="radiogroup" aria-label="Região do frete">
       <label><input type="radio" name="regiao" value="sul"><span>Sul <small>8%</small></span></label>
@@ -190,6 +223,7 @@
     </div>
     <div class="res" id="resFrete" hidden></div>
     <div class="aviso" id="avFrete" hidden></div>
+    </div>
 
     <div class="ajuste" id="ajuste" hidden>
       <h3>Deu diferente no Maxiprod?</h3>
@@ -200,6 +234,7 @@
       <div class="res" id="resAjuste" hidden></div>
       <div class="aviso" id="avAjuste" hidden></div>
     </div>
+    </div>
   </section>
 
   <section class="total" id="total" hidden aria-label="Totais">
@@ -209,10 +244,16 @@
 
   <section class="total" id="resumo" hidden aria-label="Resumo para inserir no Maxiprod">
     <h2>Resumo para inserir no Maxiprod</h2>
-    <h3 class="grupo">1. MADU → NEO <small>itens e frete sem IPI, ÷ 100</small></h3>
-    <div class="res" id="resNeo"></div>
-    <h3 class="grupo">2. NEO → CLIENTE <small>total de cada item e frete, sem IPI e sem dividir</small></h3>
-    <div class="res" id="resCli"></div>
+    <div class="resumo-grid">
+      <div>
+        <h3 class="grupo">1. MADU → NEO <small>itens e frete sem IPI, ÷ 100</small></h3>
+        <div class="res" id="resNeo"></div>
+      </div>
+      <div>
+        <h3 class="grupo">2. NEO → CLIENTE <small>total de cada item e frete, sem IPI e sem dividir</small></h3>
+        <div class="res" id="resCli"></div>
+      </div>
+    </div>
   </section>
 
   <p class="nota"><b>Como é calculado:</b> valor sem IPI = valor com IPI ÷ (1 + IPI). O IPI é <b>3,25%</b> para Carrinho e <b>9,75%</b> para Acessórios e miudezas. O valor para o Maxiprod é o valor sem IPI ÷ 100, porque o Maxiprod soma o IPI sozinho. Em kit de marketplace, o valor do kit é dividido pela quantidade de itens do kit para chegar no valor unitário.</p>
