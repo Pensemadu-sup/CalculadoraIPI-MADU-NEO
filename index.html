@@ -250,7 +250,7 @@
         <div class="res" id="resNeo"></div>
       </div>
       <div>
-        <h3 class="grupo">2. NEO → CLIENTE <small>total de cada item e frete, sem IPI e sem dividir</small></h3>
+        <h3 class="grupo">2. NEO → CLIENTE <small>total de cada item e frete, com IPI e sem dividir</small></h3>
         <div class="res" id="resCli"></div>
       </div>
     </div>
@@ -520,12 +520,12 @@
       else if (r.q > 1) nome += " · " + r.q + " un.";
       var unitNeo = r.semIpiTotal / r.unid / 100;
       neo += linhaCp(nome + "<br><small>valor unitário sem IPI ÷ 100</small>", brl4(unitNeo), num4(unitNeo));
-      cli += linhaCp(nome + "<br><small>valor total do item sem IPI</small>", brl(r.semIpiTotal), num2(r.semIpiTotal));
+      cli += linhaCp(nome + "<br><small>valor total do item com IPI</small>", brl(r.comIpi), num2(r.comIpi));
     });
     if (fr) {
       var f100 = fr.corr != null ? fr.corr : fr.ins;
       neo += linhaCp("Frete" + (fr.corr != null ? " (corrigido)" : "") + "<br><small>sem IPI ÷ 100</small>", brl4(f100), num4(f100));
-      cli += linhaCp("Frete<br><small>sem IPI, valor cheio</small>", brl(fr.semIpi), num2(fr.semIpi));
+      cli += linhaCp("Frete<br><small>com IPI, valor cheio</small>", brl(fr.F), num2(fr.F));
     }
     $("resNeo").innerHTML = neo; $("resCli").innerHTML = cli;
   }
