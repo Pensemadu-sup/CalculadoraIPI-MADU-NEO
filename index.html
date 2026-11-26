@@ -98,6 +98,15 @@
   .ajuste h3 { margin: 0; font-size: .92rem; font-weight: 600; }
   .ajuste .mini { margin: 4px 0 12px; font-size: .8rem; line-height: 1.5; color: var(--suave); }
   .ajuste .campo input { min-height: 42px; font-size: .92rem; }
+  .grupo { margin: 20px 0 10px; font-size: .95rem; font-weight: 600; }
+  .grupo:first-of-type { margin-top: 0; }
+  .grupo small { display: block; margin-top: 2px; font-size: .78rem; font-weight: 400; color: var(--suave); }
+  #resumo { margin-top: 20px; }
+  #resumo .res-linha { align-items: center; }
+  #resumo .res-linha small { font-size: .76rem; }
+  .res-linha .dir { display: flex; align-items: center; gap: 10px; }
+  .copiar.peq { min-height: 32px; padding: 0 12px; border: 1px solid var(--linha); color: var(--tinta); font-size: .66rem; }
+  .copiar.peq:hover { background: var(--faixa); }
   .res-ok { color: var(--ok); }
   .res-ok b { color: var(--ok); }
 
@@ -176,11 +185,6 @@
     <div class="campos um" id="boxManual" hidden>
       <div class="campo"><label for="vFrete">Valor do frete (com IPI)</label><input id="vFrete" type="text" inputmode="decimal" placeholder="Ex.: 45,00" autocomplete="off"></div>
     </div>
-    <p class="sub-rot">O frete também é dividido por 100?</p>
-    <div class="pilulas" role="radiogroup" aria-label="Dividir o frete por 100">
-      <label><input type="radio" name="fdiv" value="sim" checked><span>Sim</span></label>
-      <label><input type="radio" name="fdiv" value="nao"><span>Não</span></label>
-    </div>
     <div class="res" id="resFrete" hidden></div>
     <div class="aviso" id="avFrete" hidden></div>
 
@@ -198,6 +202,14 @@
   <section class="total" id="total" hidden aria-label="Totais">
     <h2>Total da compra</h2>
     <div class="res" id="resTotal"></div>
+  </section>
+
+  <section class="total" id="resumo" hidden aria-label="Resumo para inserir no Maxiprod">
+    <h2>Resumo para inserir no Maxiprod</h2>
+    <h3 class="grupo">1. MADU → NEO <small>itens e frete sem IPI, ÷ 100</small></h3>
+    <div class="res" id="resNeo"></div>
+    <h3 class="grupo">2. NEO → CLIENTE <small>total de cada item e frete, sem IPI e sem dividir</small></h3>
+    <div class="res" id="resCli"></div>
   </section>
 
   <p class="nota"><b>Como é calculado:</b> valor sem IPI = valor com IPI ÷ (1 + IPI). O IPI é <b>3,25%</b> para Carrinho e <b>9,75%</b> para Acessórios e miudezas. O valor para o Maxiprod é o valor sem IPI ÷ 100, porque o Maxiprod soma o IPI sozinho.</p>
@@ -370,7 +382,7 @@
       F = base * reg.pct;
     }
     var al = aliquotaFrete(ok);
-    var k = document.querySelector("input[name=fdiv]:checked").value === "sim" ? 100 : 1;
+    var k = 100; // o frete entra no Maxiprod MADU-NEO sem IPI e dividido por 100
     var semIpi = F / (1 + al.ipi);
     return { F: F, al: al, k: k, semIpi: semIpi, ins: semIpi / k, reg: reg, base: base };
   }
@@ -382,7 +394,7 @@
     if (fr.reg) h += linha("Frete: " + fr.reg.nome + " (" + pct(fr.reg.pct) + " de " + brl(fr.base) + ")", brl(fr.F));
     h += linha("Alíquota de IPI usada no frete", pct(fr.al.ipi) + " <small style='font-weight:400;color:var(--suave)'>(" + TIPOS[fr.al.tipo].nome + ", " + fr.al.motivo + ")</small>");
     h += linha("Frete sem IPI", brl(fr.semIpi));
-    h += "<div class='res-linha res-neo'><span>Inserir o frete no Maxiprod" + (fr.k === 100 ? "<br>(frete sem IPI ÷ 100)" : "<br>(frete sem IPI)") + "</span><div class='dir'><b>" + brl4(fr.ins) + "</b><button type='button' class='copiar' data-v='" + num4(fr.ins) + "'>Copiar</button></div></div>";
+    h += "<div class='res-linha res-neo'><span>Inserir o frete no Maxiprod<br>(frete sem IPI ÷ 100)</span><div class='dir'><b>" + brl4(fr.ins) + "</b><button type='button' class='copiar' data-v='" + num4(fr.ins) + "'>Copiar</button></div></div>";
     res.innerHTML = h; res.hidden = false;
     aj.hidden = false;
 
@@ -404,6 +416,7 @@
       hh += "<div class='res-linha res-ok'><span>O total do Maxiprod está batendo.</span><b>Não precisa corrigir</b></div>";
     } else {
       var corr = (fr.F / fr.k) / (1 + rm);
+      fr.corr = corr;
       hh += linha("Alíquota que o Maxiprod aplicou no frete", pct(rm));
       hh += "<div class='res-linha res-neo'><span>Frete corrigido para colocar<br>no Maxiprod</span><div class='dir'><b>" + brl4(corr) + "</b><button type='button' class='copiar' data-v='" + num4(corr) + "'>Copiar</button></div></div>";
     }
@@ -414,6 +427,7 @@
     var ok = itens.filter(function (i) { return i.r; });
     var fr = estadoFrete(ok);
     desenharFrete(ok, fr);
+    desenharResumo(ok, fr);
     var mostrar = ok.length >= 2 || (ok.length >= 1 && fr);
     $("total").hidden = !mostrar;
     if (!mostrar) return;
@@ -426,12 +440,36 @@
     }
     h += linha("Valor total com IPI", brl(c)) + linha("Valor total sem IPI", brl(s)) + linha(fr ? "Total para o Maxiprod (sem IPI ÷ 100)" : "Total ÷ 100", brl4(n));
     var esperado = c / 100;
-    if (fr && fr.k === 1) esperado = (c - fr.F) / 100 + fr.F;
     h += linha("Total esperado no Maxiprod (com IPI)", brl(esperado));
     $("resTotal").innerHTML = h;
   }
 
+  /* ---------- resumo para copiar ---------- */
+  function num2(n) { return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function linhaCp(rot, txt, copia) {
+    return "<div class='res-linha'><span>" + rot + "</span><div class='dir'><b>" + txt + "</b><button type='button' class='copiar peq' data-v='" + copia + "'>Copiar</button></div></div>";
+  }
+  function desenharResumo(ok, fr) {
+    $("resumo").hidden = !ok.length;
+    if (!ok.length) return;
+    var neo = "", cli = "";
+    itens.forEach(function (it, idx) {
+      if (!it.r) return;
+      var r = it.r, nome = "Item " + (idx + 1) + " · " + TIPOS[r.tipo].nome + (r.q > 1 ? " · " + r.q + " un." : "");
+      var unitNeo = r.semIpiTotal / r.q / 100;
+      neo += linhaCp(nome + "<br><small>valor unitário sem IPI ÷ 100</small>", brl4(unitNeo), num4(unitNeo));
+      cli += linhaCp(nome + "<br><small>valor total do item sem IPI</small>", brl(r.semIpiTotal), num2(r.semIpiTotal));
+    });
+    if (fr) {
+      var f100 = fr.corr != null ? fr.corr : fr.ins;
+      neo += linhaCp("Frete" + (fr.corr != null ? " (corrigido)" : "") + "<br><small>sem IPI ÷ 100</small>", brl4(f100), num4(f100));
+      cli += linhaCp("Frete<br><small>sem IPI, valor cheio</small>", brl(fr.semIpi), num2(fr.semIpi));
+    }
+    $("resNeo").innerHTML = neo; $("resCli").innerHTML = cli;
+  }
+
   function copiar(txt, btn) {
+    txt = String(txt).replace(/\.(?=\d{3}(\D|$))/g, ""); // 1.234,56 -> 1234,56
     var fim = function () { var o = btn.textContent; btn.textContent = "Copiado!"; setTimeout(function () { btn.textContent = o; }, 1300); };
     if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(fim, function () { velho(txt); fim(); }); }
     else { velho(txt); fim(); }
@@ -446,7 +484,6 @@
     $("vFrete").value = ""; $("tMax").value = "";
     var r = document.querySelector("input[name=regiao]:checked"); if (r) r.checked = false;
     $("boxManual").hidden = true;
-    document.querySelector("input[name=fdiv][value=sim]").checked = true;
     $("frete").hidden = true; $("btnFrete").hidden = false;
   }
   $("btnFrete").addEventListener("click", function () { $("frete").hidden = false; $("btnFrete").hidden = true; totais(); });
@@ -454,6 +491,10 @@
   $("frete").addEventListener("input", totais);
   $("frete").addEventListener("change", totais);
   $("frete").addEventListener("click", function (e) {
+    var b = e.target.closest(".copiar"); if (!b) return;
+    copiar(b.getAttribute("data-v"), b);
+  });
+  $("resumo").addEventListener("click", function (e) {
     var b = e.target.closest(".copiar"); if (!b) return;
     copiar(b.getAttribute("data-v"), b);
   });
